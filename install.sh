@@ -21,26 +21,13 @@ else
 fi
 
 echo "--------------------------------------------------"
-echo -e '\e[32m[1] Check CPU\e[39m'
-echo "--------------------------------------------------"
-CPU=$(grep vendor_id /proc/cpuinfo)
-if [[ $CPU == *"AuthenticAMD"* ]]; then
-	MICROCODE=amd-ucode
-	echo "Install AMD microcode"
-fi
-if [[ $CPU == *"GenuineIntel"* ]]; then
-	MICROCODE=intel-ucode
-	echo "Install Intel microcode"
-fi
-
-echo "--------------------------------------------------"
-echo -e '\e[32m[2] Update the system clock\e[39m'
+echo -e '\e[32m[1] Update the system clock\e[39m'
 echo "--------------------------------------------------"
 timedatectl set-ntp true
 timedatectl status
 
 echo "--------------------------------------------------"
-echo -e '\e[32m[3] Partition the disks\e[39m'
+echo -e '\e[32m[2] Partition the disks\e[39m'
 echo "--------------------------------------------------"
 lsblk
 echo -e '\e[33mSelect the disk:\e[39m'
@@ -81,7 +68,7 @@ wipefs -a -f $DISK
 ) | fdisk $DISK -w always -W always
 
 echo "--------------------------------------------------"
-echo -e '\e[32m[4] Format the partitions\e[39m'
+echo -e '\e[32m[3] Format the partitions\e[39m'
 echo "--------------------------------------------------"
 if [ "$BIOS_TYPE" == "uefi" ]; then
 	mkfs.fat -F32 $DISK1
@@ -102,7 +89,7 @@ cd ..
 umount /mnt
 
 echo "--------------------------------------------------"
-echo -e '\e[32m[5] Mount the file systems\e[39m'
+echo -e '\e[32m[4] Mount the file systems\e[39m'
 echo "--------------------------------------------------"
 mount -o noatime,space_cache,compress-force=zstd,subvol=root $DISK3 /mnt
 mkdir -p /mnt/home
@@ -124,18 +111,29 @@ if [ "$BIOS_TYPE" == "bios" ]; then
 fi
 
 echo "--------------------------------------------------"
-echo -e '\e[32m[6] Select the mirrors\e[39m'
+echo -e '\e[32m[5] Select the mirrors\e[39m'
 echo "--------------------------------------------------"
 reflector --age 48 --fastest 5 --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 
 echo "--------------------------------------------------"
-echo -e '\e[32m[7] Install essential packages\e[39m'
+echo -e '\e[32m[6] Install essential packages\e[39m'
 echo "--------------------------------------------------"
 sed -i 's/#Color/Color\nILoveCandy/' /etc/pacman.conf
 sed -i 's/#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-pacstrap /mnt base base-devel linux-zen linux-zen-headers linux-firmware pacman-contrib $MICROCODE
+pacstrap /mnt base base-devel linux-zen linux-zen-headers linux-firmware pacman-contrib
 sed -i 's/#Color/Color\nILoveCandy/' /mnt/etc/pacman.conf
 sed -i 's/#ParallelDownloads/ParallelDownloads/' /mnt/etc/pacman.conf
+
+echo "--------------------------------------------------"
+echo -e '\e[32m[7] Microcode\e[39m'
+echo "--------------------------------------------------"
+CPU=$(grep vendor_id /proc/cpuinfo)
+if [[ $CPU == *"AuthenticAMD"* ]]; then
+	arch-chroot /mnt pacman -S amd-ucode --noconfirm
+fi
+if [[ $CPU == *"GenuineIntel"* ]]; then
+	arch-chroot /mnt pacman -S intel-ucode --noconfirm
+fi
 
 echo "--------------------------------------------------"
 echo -e '\e[32m[8] Generate an fstab file\e[39m'
@@ -235,6 +233,9 @@ echo "--------------------------------------------------"
 echo -e '\e[32m[16] Optimization\e[39m'
 echo "--------------------------------------------------"
 arch-chroot /mnt echo 'vm.swappiness=10' > /etc/sysctl.d/99-swappiness.conf
+arch-chroot /mnt sed -i 's/#MAKEFLAGS/MAKEFLAGS/' /etc/makepkg.conf
+arch-chroot /mnt sed -i 's/-j2/-j$(nproc)/' /etc/makepkg.conf
+arch-chroot /mnt sed -i 's/# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 arch-chroot /mnt pacman -S ufw gufw --noconfirm
 arch-chroot /mnt systemctl enable ufw.service
 arch-chroot /mnt ufw enable
@@ -264,15 +265,21 @@ arch-chroot /mnt systemctl enable bluetooth.service
 echo "--------------------------------------------------"
 echo -e '\e[32m[21] Paru\e[39m'
 echo "--------------------------------------------------"
-ARCH=$(uname -m)
-TAG=$(curl --silent "https://api.github.com/repos/Morganamilo/paru/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-if [[ $ARCH == x86_64* ]]; then
-	curl https://github.com/Morganamilo/paru/releases/download/${TAG}/paru-${TAG}-x86_64.tar.zst -o paru-${TAG}.tar.zst
-elif [[ $ARCH == arm* ]]; then
-	curl https://github.com/Morganamilo/paru/releases/download/${TAG}/paru-${TAG}-aarch64.tar.zst -o paru-${TAG}.tar.zst
-fi
-arch-chroot /mnt pacman -U paru-${TAG}.tar.zst
-rm paru-${TAG}.tar.zst
+arch-chroot /mnt pacman -S git --noconfirm
+arch-chroot /mnt git clone https://aur.archlinux.org/paru-bin.git
+arch-chroot /mnt cd paru-bin
+arch-chroot /mnt makepkg -si --noconfirm
+arch-chroot /mnt cd ..
+arch-chroot /mnt rm -rf paru-bin/
+# ARCH=$(uname -m)
+# TAG=$(curl --silent "https://api.github.com/repos/Morganamilo/paru/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+# if [[ $ARCH == x86_64* ]]; then
+# 	curl https://github.com/Morganamilo/paru/releases/download/${TAG}/paru-${TAG}-x86_64.tar.zst -o paru-${TAG}.tar.zst
+# elif [[ $ARCH == arm* ]]; then
+# 	curl https://github.com/Morganamilo/paru/releases/download/${TAG}/paru-${TAG}-aarch64.tar.zst -o paru-${TAG}.tar.zst
+# fi
+# arch-chroot /mnt pacman -U paru-${TAG}.tar.zst
+# rm paru-${TAG}.tar.zst
 
 echo "--------------------------------------------------"
 echo -e '\e[32m[22] Fonts\e[39m'
@@ -290,6 +297,7 @@ echo "--------------------------------------------------"
 echo -e '\e[32m[24] Extra\e[39m'
 echo "--------------------------------------------------"
 arch-chroot /mnt pacman -S neovim git xsel xclip gnome-tweaks dconf-editor webp-pixbuf-loader p7zip unrar gvfs-gphoto2 gvfs-mtp sushi xdg-user-dirs-gtk --noconfirm
+arch-chroot /mnt sed -i 's/%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 
 echo "--------------------------------------------------"
 echo -e '\e[32m[25] Remove install script\e[39m'
