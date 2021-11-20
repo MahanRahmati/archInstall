@@ -295,15 +295,19 @@ echo "--------------------------------------------------"
 echo -e '\e[32m[24] Extra\e[39m'
 echo "--------------------------------------------------"
 arch-chroot /mnt pacman -S neovim git xsel xclip gnome-tweaks dconf-editor webp-pixbuf-loader p7zip unrar gvfs-gphoto2 gvfs-mtp sushi xdg-user-dirs-gtk --noconfirm
+
+echo "--------------------------------------------------"
+echo -e '\e[32m[25] Cleanup\e[39m'
+echo "--------------------------------------------------"
 arch-chroot /mnt sed -i "s/%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
 
 echo "--------------------------------------------------"
-echo -e '\e[32m[25] Remove install script\e[39m'
+echo -e '\e[32m[26] Remove install script\e[39m'
 echo "--------------------------------------------------"
 rm install.sh
 
 echo "--------------------------------------------------"
-echo -e '\e[32m[26] Reboot\e[39m'
+echo -e '\e[32m[27] Reboot\e[39m'
 echo "--------------------------------------------------"
 umount -a
 reboot
