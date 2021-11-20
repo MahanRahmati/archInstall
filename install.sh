@@ -171,9 +171,9 @@ echo "--------------------------------------------------"
 arch-chroot /mnt pacman -S fish --noconfirm
 echo -e '\e[33mSet username:\e[39m'
 read -r USERNAME
-arch-chroot /mnt useradd -m -G wheel -s /bin/fish "$USERNAME"
+arch-chroot /mnt useradd -m -G wheel -s /bin/fish "${USERNAME,,}"
 echo -e '\e[33mSet user password:\e[39m'
-arch-chroot /mnt passwd "$USERNAME"
+arch-chroot /mnt passwd "${USERNAME,,}"
 arch-chroot /mnt sed -i "s/# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/" /etc/sudoers
 arch-chroot /mnt pacman -S xdg-user-dirs --noconfirm
 arch-chroot /mnt xdg-user-dirs-update
